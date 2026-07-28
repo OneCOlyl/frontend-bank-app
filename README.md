@@ -12,6 +12,7 @@ Express, `@grpc/grpc-js`.
 |------------|-----------------|
 | Angular 16+ | Angular 21, standalone-компоненты, signals, `@defer`, `@if/@for` |
 | Три транспорта | **REST** (HttpClient), **GraphQL** (тонкий клиент), **gRPC** (BFF на Node) |
+| Real-time | **SSE** (live-курсы) + **WebSocket** (уведомления о заявках) |
 | CSR / SSR / SSG / ISR | Режим задаётся per-route в `app.routes.server.ts` |
 | Адаптивная кроссбраузерная вёрстка | CSS Grid/Flex, `clamp()`, логические свойства, бургер-меню, `prefers-reduced-motion` |
 | SOLID / KISS / DRY / YAGNI | Слои core/features/shared, DIP через InjectionToken, единые доменные модели |
@@ -66,6 +67,22 @@ PORT=4000 node dist/bankweb/server/server.mjs   # http://localhost:4000
 Страница `/rates` переключает REST ↔ gRPC в рантайме: один домен, разные транспорты
 за общим интерфейсом `RatesGateway` (Dependency Inversion / Liskov).
 
+## Real-time
+
+Поверх бэкенд-шины событий — два браузерных транспорта:
+
+- **SSE** (`RealtimeRatesService`) — нативный `EventSource` на `/sse/rates`, без библиотек.
+  Страница `/rates` первично грузится выбранным транспортом (участвует в SSR), а затем
+  переключается на живой поток `rate:update`: таблица обновляется каждые ~3с, рост/падение
+  подсвечивается, показывается индикатор `LIVE · SSE`.
+- **WebSocket** (`RealtimeSocketService`) — общий сокет на `/ws` с авто-переподключением.
+  `NotificationsComponent` в layout слушает канал `application:new` и показывает тост,
+  когда заявку создают в любой вкладке/сессии — глобальный real-time эффект.
+
+Оба сервиса browser-only (на сервере `EventSource`/`WebSocket` нет): при SSR поток
+пустой, подключение происходит после гидрации. Тикер бэкенда включается переменной
+`RATE_TICK_MS` (например `RATE_TICK_MS=3000 npm run dev`).
+
 ## Архитектура
 
 ```
@@ -74,10 +91,11 @@ src/app/
     config/             APP_CONFIG (InjectionToken с адресами) — DIP
     models/             доменные модели + русские подписи (единый источник — DRY)
     auth/               AuthService (signals), interceptor, guard, TokenStorage (SSR-safe)
-    data/               транспорты: RatesGateway (REST/gRPC), NewsService, ProductsService (GraphQL), ApplicationsService, GraphqlClient
+    data/               транспорты: RatesGateway (REST/gRPC), NewsService, ProductsService (GraphQL),
+                        ApplicationsService, GraphqlClient, RealtimeRatesService (SSE), RealtimeSocketService (WS)
   features/             страницы (lazy loadComponent — code splitting)
     home/ products/ rates/ news/ auth/ application/
-  layout/               header (адаптивная навигация) + footer
+  layout/               header (адаптивная навигация) + footer + notifications (WS-тосты)
   shared/               MoneyPipe, SpinnerComponent, RenderBadgeComponent, toAsyncState()
   app.routes.ts         маршруты (lazy)
   app.routes.server.ts  режимы рендеринга per-route

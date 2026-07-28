@@ -11,6 +11,10 @@ export interface AppConfig {
   graphqlUrl: string;
   /** Префикс BFF-прокси для gRPC (обслуживается Node-сервером Angular). */
   bffBaseUrl: string;
+  /** SSE-поток обновления курсов (real-time), напр. http://localhost:3000/sse/rates */
+  sseRatesUrl: string;
+  /** WebSocket-шлюз событий, напр. ws://localhost:3000/ws */
+  wsUrl: string;
 }
 
 export const APP_CONFIG = new InjectionToken<AppConfig>('APP_CONFIG');
@@ -20,4 +24,6 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
   restBaseUrl: 'http://localhost:3000/api/v1',
   graphqlUrl: 'http://localhost:3000/graphql',
   bffBaseUrl: '/bff',
+  sseRatesUrl: 'http://localhost:3000/sse/rates',
+  wsUrl: 'ws://localhost:3000/ws',
 };
